@@ -19,12 +19,43 @@
               >
             </div>
           </div>
+          <div class="flex items-center space-x-4">
+            {% if user.is_authenticated %}
+            <span class="text-gray-600">Welcome, {{ user.email }}</span>
+            <a
+              href="{% url 'avatar:logout' %}"
+              class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >Logout</a
+            >
+            {% else %}
+            <a
+              href="{% url 'avatar:login' %}"
+              class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >Login</a
+            >
+            <a
+              href="{% url 'avatar:signup' %}"
+              class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >Sign Up</a
+            >
+            {% endif %}
+          </div>
         </div>
       </div>
     </nav>
 
     <main class="container mx-auto px-4 py-8">
-      {% block content %}{% endblock content %}
+      {% if messages %}
+      <div class="mb-8">
+        {% for message in messages %}
+        <div
+          class="p-4 rounded-md {% if message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}"
+        >
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %} {% block content %}{% endblock content %}
     </main>
 
     <footer class="bg-white shadow-lg mt-8">

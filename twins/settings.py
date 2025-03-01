@@ -117,3 +117,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Google OAuth2 settings
+GOOGLE_OAUTH2_CLIENT_ID = 'your-client-id'  # Replace with your actual client ID
+GOOGLE_OAUTH2_CLIENT_SECRET = 'your-client-secret'  # Replace with your actual client secret
+
+# Authentication settings
+LOGIN_URL = 'avatar:login'
+LOGIN_REDIRECT_URL = 'avatar:home'
+LOGOUT_REDIRECT_URL = 'avatar:home'

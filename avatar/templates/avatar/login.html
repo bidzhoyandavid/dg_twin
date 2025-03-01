@@ -1,0 +1,38 @@
+{% extends 'avatar/base.html' %} {% block title %}Login {%endblock %} {%
+spaceless %} {% block content %}
+<div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
+  <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+
+  <div class="space-y-4">
+    <a
+      href="{% url 'avatar:google_login' %}"
+      class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+    >
+      <img
+        src="https://www.google.com/favicon.ico"
+        alt="Google"
+        class="h-5 w-5 mr-2"
+      />
+      Login with Google
+    </a>
+
+    <div class="relative">
+      <div class="absolute inset-0 flex items-center">
+        <div class="w-full border-t border-gray-300"></div>
+      </div>
+      <div class="relative flex justify-center text-sm">
+        <span class="px-2 bg-white text-gray-500">Don't have an account?</span>
+      </div>
+    </div>
+
+    <div class="text-center">
+      <a
+        href="{% url 'avatar:signup' %}"
+        class="text-blue-600 hover:text-blue-800"
+      >
+        Create Account
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
