@@ -3,13 +3,17 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.core.files.base import ContentFile
+from django.contrib.auth import logout
+from django.contrib import messages
+from django.urls import reverse
 from .models import User
 import openai
 from PIL import Image
 import io
 import base64
 import json
-from django.contrib import messages
+import requests
+from urllib.parse import urlencode
 
 openai.api_key = settings.OPENAI_API_KEY
 
@@ -142,3 +146,76 @@ def avatar_status(request, user_id):
         })
     except User.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)
+
+def login_view(request):
+    return render(request, 'avatar/login.html')
+
+def signup_view(request):
+    return render(request, 'avatar/signup.html')
+
+def logout_view(request):
+    logout(request)
+    messages.success(request, 'You have been logged out successfully.')
+    return redirect('avatar:home')
+
+def google_login(request):
+    """Start the Google OAuth2 login process"""
+    google_auth_url = 'https://accounts.google.com/o/oauth2/v2/auth'
+    params = {
+        'client_id': settings.GOOGLE_OAUTH2_CLIENT_ID,
+        'redirect_uri': request.build_absolute_uri(reverse('avatar:google_callback')),
+        'response_type': 'code',
+        'scope': 'email profile',
+        'access_type': 'offline',
+        'prompt': 'consent',
+    }
+    auth_url = f"{google_auth_url}?{urlencode(params)}"
+    return redirect(auth_url)
+
+def google_callback(request):
+    """Handle the Google OAuth2 callback"""
+    code = request.GET.get('code')
+    if not code:
+        messages.error(request, 'Authentication failed.')
+        return redirect('avatar:login')
+
+    # Exchange the authorization code for tokens
+    token_url = 'https://oauth2.googleapis.com/token'
+    data = {
+        'code': code,
+        'client_id': settings.GOOGLE_OAUTH2_CLIENT_ID,
+        'client_secret': settings.GOOGLE_OAUTH2_CLIENT_SECRET,
+        'redirect_uri': request.build_absolute_uri(reverse('avatar:google_callback')),
+        'grant_type': 'authorization_code',
+    }
+    
+    try:
+        response = requests.post(token_url, data=data)
+        token_data = response.json()
+        
+        # Get user info from Google
+        user_info_response = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f"Bearer {token_data['access_token']}"}
+        )
+        user_info = user_info_response.json()
+        
+        # Get or create user
+        user, created = User.objects.get_or_create(
+            email=user_info['email'],
+            defaults={
+                'name': user_info.get('name', ''),
+                'google_id': user_info['id'],
+            }
+        )
+        
+        # Log the user in
+        from django.contrib.auth import login
+        login(request, user)
+        
+        messages.success(request, 'Login successful!')
+        return redirect('avatar:home')
+        
+    except Exception as e:
+        messages.error(request, f'Authentication failed: {str(e)}')
+        return redirect('avatar:login')
