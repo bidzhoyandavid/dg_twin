@@ -1,0 +1,481 @@
+{% extends 'avatar/base.html' %} {% block title %}Generate Avatar{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <h2 class="text-2xl font-bold mb-6">Generate Your Avatar</h2>
+
+    <form id="uploadForm" class="space-y-6">
+      {% csrf_token %}
+      <div class="space-y-4">
+        <label class="block text-gray-700 text-sm font-bold mb-2" for="photo">
+          Upload Your Photo
+        </label>
+        <input
+          class="hidden"
+          type="file"
+          id="photo"
+          name="photo"
+          accept="image/*"
+          required
+        />
+        <div
+          class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-500"
+          id="dropZone"
+        >
+          <div id="preview" class="hidden mb-4">
+            <img
+              id="previewImage"
+              src=""
+              alt="Preview"
+              class="max-h-64 mx-auto"
+            />
+          </div>
+          <p class="text-gray-600" id="dropText">
+            Drag and drop your photo here or click to select
+          </p>
+        </div>
+      </div>
+
+      <!-- Voice Recording Section -->
+      <div class="space-y-4 mt-8">
+        <label class="block text-gray-700 text-sm font-bold mb-2">
+          Record Your Voice
+        </label>
+        <div class="border-2 border-gray-300 rounded-lg p-6">
+          <div class="flex flex-col items-center space-y-4">
+            <button
+              type="button"
+              id="recordButton"
+              class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full flex items-center"
+            >
+              <svg
+                class="w-6 h-6 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="6" fill="currentColor" />
+              </svg>
+              <span id="recordButtonText">Start Recording</span>
+            </button>
+            <div id="recordingStatus" class="text-gray-600 hidden">
+              Recording... <span id="recordingTime">0:00</span>
+            </div>
+            <audio id="audioPlayback" controls class="hidden w-full"></audio>
+            <input type="hidden" id="voiceBlob" name="voice" />
+            <div id="voiceSaveControls" class="hidden space-y-2 w-full">
+              <button
+                type="button"
+                id="saveVoiceBtn"
+                class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+              >
+                Save Voice Recording
+              </button>
+              <p
+                id="voiceSaveStatus"
+                class="text-sm text-gray-600 text-center hidden"
+              >
+                Voice recording saved!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <button
+          type="submit"
+          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          id="generateBtn"
+        >
+          Generate Avatar
+        </button>
+      </div>
+    </form>
+
+    <div id="result" class="hidden mt-8">
+      <h3 class="text-xl font-bold mb-4">Generated Avatar</h3>
+      <div class="flex justify-center">
+        <img
+          id="generatedAvatar"
+          src=""
+          alt="Generated Avatar"
+          class="max-h-64"
+        />
+      </div>
+      <div class="mt-4 text-center space-y-4">
+        <a
+          id="downloadBtn"
+          href=""
+          download
+          class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+        >
+          Download Avatar
+        </a>
+        <div>
+          <button
+            id="saveBtn"
+            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Save User
+          </button>
+          <p id="saveStatus" class="text-sm text-gray-600 mt-2 hidden">
+            User saved successfully!
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="error"
+      class="hidden mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded"
+    ></div>
+
+    <div id="loading" class="hidden mt-4">
+      <div class="flex items-center justify-center">
+        <div
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
+        ></div>
+        <span class="ml-2">Generating your avatar...</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("photo");
+    const preview = document.getElementById("preview");
+    const previewImage = document.getElementById("previewImage");
+    const dropText = document.getElementById("dropText");
+    const uploadForm = document.getElementById("uploadForm");
+    const loading = document.getElementById("loading");
+    const result = document.getElementById("result");
+    const error = document.getElementById("error");
+    const generatedAvatar = document.getElementById("generatedAvatar");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    // Voice recording elements
+    const recordButton = document.getElementById("recordButton");
+    const recordButtonText = document.getElementById("recordButtonText");
+    const recordingStatus = document.getElementById("recordingStatus");
+    const recordingTime = document.getElementById("recordingTime");
+    const audioPlayback = document.getElementById("audioPlayback");
+    const voiceBlob = document.getElementById("voiceBlob");
+    const voiceSaveControls = document.getElementById("voiceSaveControls");
+    const saveVoiceBtn = document.getElementById("saveVoiceBtn");
+    const voiceSaveStatus = document.getElementById("voiceSaveStatus");
+
+    let mediaRecorder;
+    let audioChunks = [];
+    let startTime;
+    let recordingInterval;
+    let isRecording = false;
+    let currentUserId = null;
+
+    // Request microphone access
+    async function setupRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          audioPlayback.src = audioUrl;
+          audioPlayback.classList.remove("hidden");
+          voiceSaveControls.classList.remove("hidden");
+
+          // Convert blob to base64 for form submission
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            voiceBlob.value = reader.result;
+          };
+        };
+      } catch (err) {
+        console.error("Error accessing microphone:", err);
+        error.textContent =
+          "Error accessing microphone. Please ensure you have granted microphone permissions.";
+        error.classList.remove("hidden");
+        recordButton.disabled = true;
+      }
+    }
+
+    // Update recording time
+    function updateRecordingTime() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      recordingTime.textContent = `${minutes}:${seconds
+        .toString()
+        .padStart(2, "0")}`;
+    }
+
+    // Handle voice save button click
+    saveVoiceBtn.addEventListener("click", async () => {
+      if (!currentUserId || !voiceBlob.value) {
+        error.textContent =
+          "Please generate an avatar first and record your voice";
+        error.classList.remove("hidden");
+        return;
+      }
+
+      try {
+        const voiceFormData = new FormData();
+        voiceFormData.append("voice", voiceBlob.value);
+
+        const voiceResponse = await fetch(
+          `{% url 'avatar:record_voice' '00000000-0000-0000-0000-000000000000' %}`.replace(
+            "00000000-0000-0000-0000-000000000000",
+            currentUserId
+          ),
+          {
+            method: "POST",
+            body: voiceFormData,
+            headers: {
+              "X-CSRFToken": document.querySelector(
+                "[name=csrfmiddlewaretoken]"
+              ).value,
+            },
+          }
+        );
+
+        const voiceData = await voiceResponse.json();
+        if (!voiceResponse.ok)
+          throw new Error(voiceData.error || "Failed to save voice recording");
+
+        saveVoiceBtn.disabled = true;
+        saveVoiceBtn.classList.add("bg-gray-500");
+        saveVoiceBtn.classList.remove("bg-blue-500", "hover:bg-blue-700");
+        voiceSaveStatus.classList.remove("hidden");
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("hidden");
+      }
+    });
+
+    // Handle record button click
+    recordButton.addEventListener("click", () => {
+      if (!isRecording) {
+        // Start recording
+        audioChunks = [];
+        mediaRecorder.start();
+        isRecording = true;
+        startTime = Date.now();
+        recordingInterval = setInterval(updateRecordingTime, 1000);
+        recordButton.classList.remove("bg-red-500", "hover:bg-red-700");
+        recordButton.classList.add("bg-gray-500", "hover:bg-gray-700");
+        recordButtonText.textContent = "Stop Recording";
+        recordingStatus.classList.remove("hidden");
+        audioPlayback.classList.add("hidden");
+        voiceSaveControls.classList.add("hidden");
+        voiceSaveStatus.classList.add("hidden");
+        saveVoiceBtn.disabled = false;
+        saveVoiceBtn.classList.remove("bg-gray-500");
+        saveVoiceBtn.classList.add("bg-blue-500", "hover:bg-blue-700");
+      } else {
+        // Stop recording
+        mediaRecorder.stop();
+        isRecording = false;
+        clearInterval(recordingInterval);
+        recordButton.classList.remove("bg-gray-500", "hover:bg-gray-700");
+        recordButton.classList.add("bg-red-500", "hover:bg-red-700");
+        recordButtonText.textContent = "Start Recording";
+        recordingStatus.classList.add("hidden");
+      }
+    });
+
+    // Initialize recording setup
+    setupRecording();
+
+    // Handle drag and drop
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("border-blue-500");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("border-blue-500");
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("border-blue-500");
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith("image/")) {
+        fileInput.files = e.dataTransfer.files;
+        showPreview(file);
+      }
+    });
+
+    dropZone.addEventListener("click", () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        showPreview(file);
+      }
+    });
+
+    function showPreview(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImage.src = e.target.result;
+        preview.classList.remove("hidden");
+        dropText.classList.add("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Handle save button click
+    const saveBtn = document.getElementById("saveBtn");
+    const saveStatus = document.getElementById("saveStatus");
+
+    saveBtn.addEventListener("click", async () => {
+      try {
+        const response = await fetch(
+          `{% url 'avatar:save_user' '00000000-0000-0000-0000-000000000000' %}`.replace(
+            "00000000-0000-0000-0000-000000000000",
+            currentUserId
+          ),
+          {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": document.querySelector(
+                "[name=csrfmiddlewaretoken]"
+              ).value,
+            },
+          }
+        );
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to save user");
+
+        saveBtn.disabled = true;
+        saveBtn.classList.add("bg-gray-500");
+        saveBtn.classList.remove("bg-blue-500", "hover:bg-blue-700");
+        saveStatus.classList.remove("hidden");
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("hidden");
+      }
+    });
+
+    uploadForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append("photo", fileInput.files[0]);
+
+      loading.classList.remove("hidden");
+      error.classList.add("hidden");
+      result.classList.add("hidden");
+
+      try {
+        // Upload photo first
+        const response = await fetch("{% url 'avatar:upload' %}", {
+          method: "POST",
+          body: formData,
+          headers: {
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+              .value,
+          },
+        });
+
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.error || "Failed to upload photo");
+
+        currentUserId = data.user_id; // Store the user ID
+
+        // Reset save button states
+        saveBtn.disabled = false;
+        saveBtn.classList.remove("bg-gray-500");
+        saveBtn.classList.add("bg-blue-500", "hover:bg-blue-700");
+        saveStatus.classList.add("hidden");
+
+        if (voiceBlob.value) {
+          saveVoiceBtn.disabled = false;
+          saveVoiceBtn.classList.remove("bg-gray-500");
+          saveVoiceBtn.classList.add("bg-blue-500", "hover:bg-blue-700");
+          voiceSaveStatus.classList.add("hidden");
+        }
+
+        // If voice recording exists, upload it separately
+        if (voiceBlob.value) {
+          const voiceFormData = new FormData();
+          voiceFormData.append("voice", voiceBlob.value);
+
+          const voiceResponse = await fetch(
+            `{% url 'avatar:record_voice' '00000000-0000-0000-0000-000000000000' %}`.replace(
+              "00000000-0000-0000-0000-000000000000",
+              data.avatar_id
+            ),
+            {
+              method: "POST",
+              body: voiceFormData,
+              headers: {
+                "X-CSRFToken": document.querySelector(
+                  "[name=csrfmiddlewaretoken]"
+                ).value,
+              },
+            }
+          );
+
+          const voiceData = await voiceResponse.json();
+          if (!voiceResponse.ok)
+            throw new Error(
+              voiceData.error || "Failed to upload voice recording"
+            );
+        }
+
+        // Poll for avatar status
+        let statusData;
+        do {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const statusResponse = await fetch(
+            `{% url 'avatar:status' '00000000-0000-0000-0000-000000000000' %}`.replace(
+              "00000000-0000-0000-0000-000000000000",
+              data.avatar_id
+            )
+          );
+          statusData = await statusResponse.json();
+        } while (statusData.status === "processing");
+
+        if (statusData.status === "failed") {
+          throw new Error(
+            statusData.error_message || "Failed to generate avatar"
+          );
+        }
+
+        // Show result
+        generatedAvatar.src = statusData.generated_avatar_url;
+        downloadBtn.href = statusData.generated_avatar_url;
+        result.classList.remove("hidden");
+
+        // If already saved, update button state
+        if (statusData.is_saved) {
+          saveBtn.disabled = true;
+          saveBtn.classList.add("bg-gray-500");
+          saveBtn.classList.remove("bg-blue-500", "hover:bg-blue-700");
+          saveStatus.classList.remove("hidden");
+        }
+      } catch (err) {
+        error.textContent = err.message;
+        error.classList.remove("hidden");
+      } finally {
+        loading.classList.add("hidden");
+      }
+    });
+  });
+</script>
+{% endblock %}

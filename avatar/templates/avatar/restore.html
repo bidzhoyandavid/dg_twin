@@ -1,0 +1,64 @@
+{% extends 'avatar/base.html' %} {% block title %}Restored Avatar{% endblock
+title %} {% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+    <h2 class="text-2xl font-bold mb-6">Restored Avatar</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Original Photo -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4">Original Photo</h3>
+        <div class="aspect-square rounded-lg overflow-hidden">
+          <img
+            src="{{ user.original_photo.url }}"
+            alt="Original Photo"
+            class="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+
+      <!-- Generated Avatar -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4">Generated Avatar</h3>
+        <div class="aspect-square rounded-lg overflow-hidden">
+          <img
+            src="{{ user.generated_avatar.url }}"
+            alt="Generated Avatar"
+            class="w-full h-full object-cover"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice Recording -->
+    {% if has_voice %}
+    <div class="mt-8">
+      <h3 class="text-lg font-semibold mb-4">Voice Recording</h3>
+      <div class="bg-gray-50 p-4 rounded-lg">
+        <audio controls class="w-full">
+          <source src="{{ user.original_voice.url }}" type="audio/wav" />
+          Your browser does not support the audio element.
+        </audio>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="mt-8 flex justify-center space-x-4">
+      <a
+        href="{{ user.generated_avatar.url }}"
+        download
+        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+      >
+        Download Avatar
+      </a>
+      <a
+        href="{% url 'avatar:home' %}"
+        class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+      >
+        Generate New Avatar
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock content %}
