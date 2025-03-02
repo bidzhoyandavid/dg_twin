@@ -119,8 +119,13 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Google OAuth2 settings
-GOOGLE_OAUTH2_CLIENT_ID = 'your-client-id'  # Replace with your actual client ID
-GOOGLE_OAUTH2_CLIENT_SECRET = 'your-client-secret'  # Replace with your actual client secret
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
+
+if not GOOGLE_OAUTH2_CLIENT_ID or not GOOGLE_OAUTH2_CLIENT_SECRET:
+    raise ValueError(
+        'GOOGLE_OAUTH2_CLIENT_ID and GOOGLE_OAUTH2_CLIENT_SECRET must be set in .env file'
+    )
 
 # Authentication settings
 LOGIN_URL = 'avatar:login'
