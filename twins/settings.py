@@ -86,10 +86,9 @@ WSGI_APPLICATION = 'twins.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# Parse database URL from environment variable
 DATABASES = {
     'default': {
-        'ENGINE': os.getenv('DJANGO_DB_ENGINE'),
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DJANGO_DB_NAME'),
         'USER': os.getenv('DJANGO_DB_USER'),
         'PASSWORD': os.getenv('DJANGO_DB_PASSWORD'),
