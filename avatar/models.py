@@ -15,7 +15,6 @@ class User(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     original_photo = models.ImageField(upload_to=user_directory_path)
     generated_avatar = models.ImageField(upload_to=user_directory_path, blank=True, null=True)
-    dall_e_url = models.URLField(max_length=500, blank=True)  # Store the DALL-E URL
     original_voice = models.FileField(upload_to=voice_directory_path, blank=True, null=True)
     generated_voice = models.FileField(upload_to=voice_directory_path, blank=True, null=True)
     prompt = models.TextField(blank=True)
